@@ -1,0 +1,253 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --------- ENUMS ---------
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum DeliveryStatus {
+  PAYMENT_PENDING
+  ORDERED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  RETURNED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  CREATED
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+// --------- USER ---------
+
+model User {
+  id    String  @id @default(cuid())
+  name  String?
+  email String  @unique
+  image String?
+  sessionToken String?
+  role  Role    @default(USER)
+
+  Addresses Address[]
+  Cart      Cart[]
+  Payments  Payment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  orders    Order[]
+}
+
+model Address {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  firstName   String
+  lastName    String
+  company     String?
+  street1     String
+  street2     String?
+  city        String
+  state       String
+  postalCode  String
+  country     String
+  phoneNumber String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// --------- PRODUCT ---------
+
+model Category {
+  id String @id @default(cuid())
+
+  name String @unique
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  products  Product[]
+}
+
+model Product {
+  id String @id @default(cuid())
+
+  name        String
+  description String?
+  quantity    Int
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  reviews Review[]
+  cost    ProductCost[]
+  images  ProductImage[]
+  details ProductDetail[]
+
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+}
+
+model ProductDetail {
+  id String @id @default(cuid())
+
+  model           String
+  countryOfOrigin String
+  warrantyPeriod  String
+  department      String
+  genericName     String
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ProductImage {
+  id String @id @default(cuid())
+
+  url String
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ProductCost {
+  id String @id @default(cuid())
+
+  basePrice Int
+  discount  Float
+  tax       Float
+  shipping  Int
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Review {
+  id String @id @default(cuid())
+
+  rating  Int
+  comment String
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// --------- CART ---------
+
+model Cart {
+  id String @id @default(cuid())
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+
+  cartItems CartItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CartItem {
+  id String @id @default(cuid())
+
+  cartId String
+  cart   Cart   @relation(fields: [cartId], references: [id])
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  quantity Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// --------- ORDER ---------
+
+model Order {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  status DeliveryStatus @default(PAYMENT_PENDING)
+  total  Float
+
+  orderItems OrderItem[]
+
+  payments Payment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model OrderItem {
+  id String @id @default(cuid())
+
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id])
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  priceAtPurchase Float
+  productName     String
+
+  quantity Int
+
+  deliveryStatus DeliveryStatus @default(ORDERED)
+  deliveryDate   DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// --------- PAYMENT ---------
+
+model Payment {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  orderId String
+  order   Order @relation(fields: [orderId], references: [id])
+
+  razorpayOrderId String @unique
+  razorpayPaymentId String? @unique
+  razorpaySignature String?
+
+  amount Int
+  currency String @default("INR")
+  status PaymentStatus @default(CREATED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
